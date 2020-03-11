@@ -1,0 +1,82 @@
+---
+title: "Bond Sensitivity"
+output: html_notebook
+---
+
+This is a notebook for the corporate finacen class. 
+
+```{r, echo=FALSE, message=FALSE}
+library(quantmod)
+library(tidyverse)
+library(magrittr)
+library(MTS)
+library(purrr)
+```
+
+Given that present value of bond is estimated by $PV = \frac{PMT}{r}(1- \frac{1}{(1+r)^{T}}) + \frac{Face Value}{(1+r)^{T}} $ and the sensitivity of bond value to change in discount rate can be derived from partial derivative of PV, which is $ \frac{\partial PV}{\partial r} = PMT(- \frac{1}{r^{2}} + \frac{1}{r^{2}(1+r)^{T}} - \frac{T}{r(1+r)^{T+1}}) - \frac{FV \times T}{(1+r)^{T+1}} $ and the percentage of change can be written as $ \frac{(\frac{\partial PV}{\partial r})}{PV} = f(r,T,PMT,FV) = \frac{PMT(- \frac{1}{r^{2}} + \frac{1}{r^{2}(1+r)^{T}} - \frac{T}{r(1+r)^{T+1}}) - \frac{FV \times T}{(1+r)^{T+1}}}{\frac{PMT}{r}(1- \frac{1}{(1+r)^{T}}) + \frac{Face Value}{(1+r)^{T}}} $ constructing function and plot different plots.
+
+
+```{r bond sensitivity}
+
+bondsens <- function(r, n, c = 0, fv = 0) {
+  ## r is discount rate or yield to maturity
+  ## n is period of payment to maturity 
+  ## c is coupon payment
+  ## fv is face value
+  pv <- c/r*(1-1/(1+r)^n) + fv/(1+r)^n
+  dpvdr <- c*(-r^-2 + r^-2*(1+r)^-n + n*r^-1*(1+r)^(-n-1)) - n*fv*(1+r)^(-n-1)
+  sensrate <- dpvdr/pv
+  return(sensrate)
+}
+
+
+```
+
+```{r bond bondsens plot}
+
+r_list <- seq(0,1, 0.01)
+Bsens_coupon4 <- map_dbl(r_list, bondsens, n = 20, c = 20, fv = 1000)
+Bsens_coupon8 <- map_dbl(r_list, bondsens, n = 20, c = 40, fv = 1000)
+Bsens_coupon12 <- map_dbl(r_list, bondsens, n = 20, c = 60, fv = 1000)
+
+r_diffcoupon <- as_data_frame(cbind(r_list, Bsens_coupon4, Bsens_coupon8, Bsens_coupon12))
+
+r_diffcoupon %>%
+  ggplot(aes(x = r_list)) +
+  geom_point(aes(y = Bsens_coupon4), color = "red") + 
+  geom_point(aes(y = Bsens_coupon8), color = "yellow") +
+  geom_point(aes(y = Bsens_coupon12), color = "green") +
+  labs( x = "interest rate", y = "derivitive of Bond price / Bond Price", 
+        title = "Different Coupon Rate", subtitle = "R = 4, Y = 8, G = 12")
+
+Bsens_period5 <- map_dbl(r_list, bondsens, n = 10, c = 40, fv = 1000)
+Bsens_period10 <- map_dbl(r_list, bondsens, n = 20, c = 40, fv = 1000)
+Bsens_period20 <- map_dbl(r_list, bondsens, n = 40, c = 40, fv = 1000)
+
+r_diffperiod <- as_data_frame(cbind(r_list, Bsens_period5, Bsens_period10, Bsens_period20))
+
+r_diffperiod %>%
+  ggplot(aes(x = r_list)) +
+  geom_point(aes(y = Bsens_period5), color = "red") + 
+  geom_point(aes(y = Bsens_period10), color = "yellow") +
+  geom_point(aes(y = Bsens_period20), color = "green") +
+  labs( x = "interest rate", y = "derivitive of Bond price / Bond Price",
+        title = "Different Maturity w/coupon payment", subtitle = "R = 5, Y = 10, G = 20")
+
+Bsens_period5noC <- map_dbl(r_list, bondsens, n = 10, c = 0, fv = 1000)
+Bsens_period10noC <- map_dbl(r_list, bondsens, n = 20, c = 0, fv = 1000)
+Bsens_period20noC <- map_dbl(r_list, bondsens, n = 40, c = 0, fv = 1000)
+
+r_diffperiod_no_coupon <- as_data_frame(cbind(r_list, Bsens_period5noC, Bsens_period10noC, Bsens_period20noC))
+
+r_diffperiod_no_coupon %>%
+  ggplot(aes(x = r_list)) +
+  geom_point(aes(y = Bsens_period5noC), color = "red") + 
+  geom_point(aes(y = Bsens_period10noC), color = "yellow") +
+  geom_point(aes(y = Bsens_period20noC), color = "green") +
+  labs( x = "interest rate", y = "derivitive of Bond price / Bond Price",
+        title = "Different Maturity w/o coupon payment", subtitle = "R = 5, Y = 10, G = 20")
+
+```
+
+
